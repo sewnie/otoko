@@ -1,4 +1,4 @@
-module github.com/apprehensions/otoko
+module github.com/sewnie/otoko
 
 go 1.23.10
 

@@ -15,7 +15,7 @@ a3457013254 18.5 MiB / 868.1 MiB   ▌░░░░░░░░░░░░░░
 
 ## Installation
 ```sh
-go install github.com/apprehensions/otoko@latest
+go install github.com/sewnie/otoko@latest
 ```
 
 ## Usage

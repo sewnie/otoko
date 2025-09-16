@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	bc "github.com/apprehensions/otoko/bandcamp"
+	bc "github.com/sewnie/otoko/bandcamp"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 )
