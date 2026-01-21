@@ -3,6 +3,7 @@ package bandcamp
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -37,6 +38,10 @@ type Time struct {
 }
 
 func (t *Time) UnmarshalJSON(b []byte) error {
+	if len(b) > 0 && b[0] == 'n' {
+		*t = Time{}
+		return nil
+	}
 	date, err := time.Parse(`"02 Jan 2006 15:04:05 GMT"`, string(b))
 	if err != nil {
 		return err
@@ -46,9 +51,41 @@ func (t *Time) UnmarshalJSON(b []byte) error {
 }
 
 type Track struct {
-	// Artist, duration, file excluded
-	Title  string `json:"title"`
-	Number int64  `json:"track_number"` // null if item is track
+	// Artist, duration excluded
+	Title  string
+	Number int64  // 0 if item is track
+	URL    string // empty if not from wishlist
+}
+
+func (t *Track) UnmarshalJSON(b []byte) error {
+	// Bandcamp stores metadata differently if it is from the
+	// Mobile API (track_num vs track_number ??? etc)
+	var data map[string]any
+
+	if err := json.Unmarshal(b, &data); err != nil {
+		return err
+	}
+
+	title, ok := data["title"].(string)
+	if !ok {
+		return errors.New("bandcamp: expected title")
+	}
+	t.Title = title
+
+	num, ok := data["track_number"].(int64)
+	if !ok {
+		num, ok = data["track_num"].(int64)
+	}
+	if ok {
+		t.Number = int64(num)
+	}
+
+	s, ok := data["streaming_url"].(map[string]string)
+	if ok {
+		t.URL = s["mp3-128"]
+	}
+
+	return nil
 }
 
 // Bandcamp store this behind the fancollection/1/collection_items endpoint, and
@@ -100,6 +137,36 @@ func (c *Client) GetCollection(id FanID) (Collection, error) {
 	}
 
 	return ci, nil
+}
+
+func (c *Client) GetWishlist(id FanID) ([]Item, error) {
+	var data struct {
+		Items     []Item             `json:"items"`
+		Tracklist map[string][]Track `json:"tracklists"`
+	}
+
+	body := map[string]any{
+		"fan_id": id,
+		// UNIX time:item ID:a|d|t:count:
+		"older_than_token": fmt.Sprintf("%d::a::", time.Now().Unix()),
+		"count":            math.MaxInt64, // Entire collection
+	}
+
+	err := c.Request("POST", "fancollection/1/wishlist_items", body, &data)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range data.Items {
+		var ok bool
+
+		data.Items[i].Tracks, ok = data.Tracklist[data.Items[i].String()]
+		if !ok {
+			return nil, fmt.Errorf("item %d missing tracklist", i)
+		}
+
+	}
+	return data.Items, nil
 }
 
 // Value uses the currency data in the HTML metadata using the given fan's

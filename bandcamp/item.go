@@ -24,14 +24,15 @@ type Item struct {
 	Type      ItemType `json:"tralbum_type"`
 	BandName  string   `json:"band_name"`
 	Title     string   `json:"item_title"`
-	Purchased Time     `json:"purchased"`
+	Purchased Time     `json:"purchased,omitempty"`
 	ArtURL    string   `json:"item_art_url"`
-	Sale
+	URL       string   `json:"item_url"`
+	Sale               // Empty properties if not purchased
 
 	Price    float64 `json:"price"`
 	Currency string  `json:"currency"`
 
-	Download string  `json:"-"`
+	Download string  `json:"-"` // Empty if not purchased
 	Tracks   []Track `json:"-"`
 }
 
@@ -55,8 +56,8 @@ const (
 )
 
 type Sale struct {
-	ID   SaleID   `json:"sale_item_id"`
-	Type SaleType `json:"sale_item_type"`
+	ID   SaleID   `json:"sale_item_id,omitempty"`
+	Type SaleType `json:"sale_item_type,omitempty"`
 }
 
 func (s Sale) String() string {
