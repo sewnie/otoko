@@ -25,8 +25,9 @@ func New(identity string) *Client {
 
 	// Cookiejar preferred for Bandcamp to get the best BACKENDID
 	jar, _ := cookiejar.New(nil)
+
 	jar.SetCookies(&url, []*http.Cookie{
-		{Name: "identity", Value: identity, Quoted: false},
+		{Name: "identity", Value: identity, Quoted: false, Domain: url.Host},
 	})
 
 	return &Client{
