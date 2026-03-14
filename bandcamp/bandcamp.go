@@ -60,7 +60,7 @@ type Track struct {
 func (t *Track) UnmarshalJSON(b []byte) error {
 	// Bandcamp stores metadata differently if it is from the
 	// Mobile API (track_num vs track_number ??? etc)
-	var data map[string]any
+	var data map[string]interface{}
 
 	if err := json.Unmarshal(b, &data); err != nil {
 		return err
@@ -72,9 +72,9 @@ func (t *Track) UnmarshalJSON(b []byte) error {
 	}
 	t.Title = title
 
-	num, ok := data["track_number"].(int64)
+	num, ok := data["track_number"].(float64)
 	if !ok {
-		num, ok = data["track_num"].(int64)
+		num, ok = data["track_num"].(float64)
 	}
 	if ok {
 		t.Number = int64(num)
