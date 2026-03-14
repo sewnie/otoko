@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -25,6 +26,7 @@ type syncCmd struct {
 	Jobs   int64  `kong:"short=j,help='Count of permitted concurrent downloads',default=6"`
 	Format string `kong:"short=f,help='Audio format to download; one of ${enum}',default=mp3-320,enum='mp3-v0,mp3-320,flac,aac-hi,vorbis,alac,wav,aiff-lossless'"`
 	Force  bool   `kong:"help='Overwrite existing files even if they already exist locally'"`
+	DryRun bool   `kong:"short=n,help='Only evaluate collection and report status'"`
 
 	Output   string            `kong:"arg,help='Path to the directory where tracks and albums will be saved',type=path"`
 	Tralbums []bandcamp.ItemID `kong:"arg,optional,help='Specific track or album IDs to sync, defaults to all'"`
@@ -72,6 +74,8 @@ func (cmd *syncCmd) Run(c *Client) error {
 	sem := semaphore.NewWeighted(cmd.Jobs)
 
 	prog := mpb.NewWithContext(ctx, mpb.WithWidth(64))
+	log.SetOutput(prog)
+
 	bar := prog.New(int64(len(names)), mpb.SpinnerStyle(),
 		mpb.PrependDecorators(
 			decor.Name(c.Fan.Username),
@@ -136,13 +140,18 @@ func (cmd *syncCmd) Download(
 			name := filepath.Join(name, fmt.Sprintf("%02d %s%s",
 				track.Number, track.Title, bandcamp.Extensions[cmd.Format]))
 			_, err := os.Stat(name)
-			if err != nil {
-				synced = false
-				break
+			if err == nil {
+				continue
 			}
+
+			if cmd.DryRun {
+				log.Println("Missing track", filepath.Base(name))
+			}
+			synced = false
+			break
 		}
 
-		if synced {
+		if synced || cmd.DryRun {
 			return nil
 		}
 
@@ -150,6 +159,11 @@ func (cmd *syncCmd) Download(
 		if err := os.RemoveAll(name); err != nil {
 			return fmt.Errorf("corrupt remove: %w", err)
 		}
+	}
+
+	if cmd.DryRun {
+		log.Println("Would download", filepath.Base(name))
+		return nil
 	}
 
 	download, err := client.GetItemDownload(item, cmd.Format)
