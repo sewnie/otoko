@@ -110,15 +110,18 @@ func (cmd *syncCmd) Run(c *Client) error {
 	return nil
 }
 
+// Bandcamp has their own file sanitizer, with unknown replacements.
+// Trial and error is the only way to figure out which characters
+// are part of it.
 var sanitizer = strings.NewReplacer(
-	"/", "_",
-	"?", "_",
-	"<", "_",
-	">", "_",
-	":", "_",
-	"|", "_",
-	"\"", "_",
-	"*", "_",
+	"/", "-",
+	"?", "-",
+	"<", "-",
+	">", "-",
+	":", "-",
+	"|", "-",
+	"\"", "-",
+	"*", "-",
 )
 
 func (cmd *syncCmd) Download(
@@ -138,7 +141,8 @@ func (cmd *syncCmd) Download(
 		synced := true
 		for _, track := range item.Tracks {
 			name := filepath.Join(name, fmt.Sprintf("%02d %s%s",
-				track.Number, track.Title, bandcamp.Extensions[cmd.Format]))
+				track.Number, sanitizer.Replace(item.Title),
+				bandcamp.Extensions[cmd.Format]))
 			_, err := os.Stat(name)
 			if err == nil {
 				continue

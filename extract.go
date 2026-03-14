@@ -3,24 +3,27 @@ package main
 import (
 	"archive/zip"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
-func extractAlbum(src *os.File, dir string) error {
+func extractAlbum(src *os.File, albumDir string) error {
 	s, err := src.Stat()
 	if err != nil {
 		return err
 	}
+
+	albumName := filepath.Base(albumDir)
 
 	r, err := zip.NewReader(src, s.Size())
 	if err != nil {
 		return err
 	}
 
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(albumDir, 0o755); err != nil {
 		return err
 	}
 
@@ -29,32 +32,39 @@ func extractAlbum(src *os.File, dir string) error {
 			return errors.New("unexpected directory")
 		}
 
-		// life - demo two - 05 twelve travel.flac -> 05 twelve travel.flac
-		track := strings.Split(f.Name, " - ")
-		name := filepath.Join(dir, track[len(track)-1])
-		if err := unzipFile(f, name); err != nil {
+		// life - demo two - 05 twelve travel.flac -> '05 twelve travel.flac'
+		name := f.Name
+		if i := strings.LastIndex(name, albumName+" - "); i > 0 {
+			name = name[i+len(albumName)+3:]
+		} else {
+			// It is unknown if Bandcamp lets artists ship their own files,
+			// but these additional album covers are the only things I've
+			// noticed present in the archives.
+			switch filepath.Ext(f.Name) {
+			case ".jpg", ".png":
+			default:
+				return fmt.Errorf("unknown file %s", f.Name)
+			}
+		}
+
+		dst, err := os.OpenFile(filepath.Join(albumDir, name),
+			os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+		if err != nil {
 			return err
 		}
-	}
 
-	return nil
-}
+		z, err := f.Open()
+		if err != nil {
+			dst.Close()
+			return err
+		}
 
-func unzipFile(src *zip.File, name string) error {
-	f, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, src.Mode())
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	z, err := src.Open()
-	if err != nil {
-		return err
-	}
-	defer z.Close()
-
-	if _, err := io.Copy(f, z); err != nil {
-		return err
+		_, err = io.Copy(dst, z)
+		dst.Close()
+		z.Close()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
