@@ -114,6 +114,7 @@ func (cmd *syncCmd) Run(c *Client) error {
 // Trial and error is the only way to figure out which characters
 // are part of it.
 var sanitizer = strings.NewReplacer(
+	"//", "-",
 	"/", "-",
 	"?", "-",
 	"<", "-",
@@ -138,10 +139,14 @@ func (cmd *syncCmd) Download(
 			return nil
 		}
 
+		// Yes, this is completely unnecessary, but Bandcamp allows
+		// artists to change the order or add new tracks to an existing
+		// album.
 		synced := true
 		for _, track := range item.Tracks {
+
 			name := filepath.Join(name, fmt.Sprintf("%02d %s%s",
-				track.Number, sanitizer.Replace(item.Title),
+				track.Number, sanitizer.Replace(track.Title),
 				bandcamp.Extensions[cmd.Format]))
 			_, err := os.Stat(name)
 			if err == nil {
@@ -149,7 +154,8 @@ func (cmd *syncCmd) Download(
 			}
 
 			if cmd.DryRun {
-				log.Println("Missing track", filepath.Base(name))
+				log.Printf("Missing track %s of %s (%s)",
+					track.Title, item.Title, name)
 			}
 			synced = false
 			break

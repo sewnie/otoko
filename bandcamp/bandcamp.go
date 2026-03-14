@@ -70,6 +70,10 @@ func (t *Track) UnmarshalJSON(b []byte) error {
 	if !ok {
 		return errors.New("bandcamp: expected title")
 	}
+	// For some strange awful reason, the API reports -- over -.
+	if title == "--" {
+		title = "-"
+	}
 	t.Title = title
 
 	num, ok := data["track_number"].(float64)
