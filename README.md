@@ -43,8 +43,7 @@ Commands:
 The identity parameter `--identity` must be the value of the `identity` cookie, found from
 the `Cookie` header in a [bandcamp.com](https://bandcamp.com/) network request,
 which can be found in a network request in the 'Request Headers' section under the network
-requests tab in the browser. `otoko` will attempt to fetch this cookie automatically from
-your browser.
+requests tab in the browser.
 
 ## Behavior
 Music is downloaded to the given output directory with this structure:
