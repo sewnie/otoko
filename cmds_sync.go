@@ -26,6 +26,7 @@ type syncCmd struct {
 	Jobs   int64  `kong:"short=j,help='Count of permitted concurrent downloads',default=6"`
 	Format string `kong:"short=f,help='Audio format to download; one of ${enum}',default=mp3-320,enum='mp3-v0,mp3-320,flac,aac-hi,vorbis,alac,wav,aiff-lossless'"`
 	Force  bool   `kong:"help='Overwrite existing files even if they already exist locally'"`
+	Strict bool   `kong:"help='Ensure file format when checking album or track download validity'"`
 	DryRun bool   `kong:"short=n,help='Only evaluate collection and report status'"`
 
 	Output   string            `kong:"arg,help='Path to the directory where tracks and albums will be saved',type=path"`
@@ -125,6 +126,41 @@ var sanitizer = strings.NewReplacer(
 	"*", "-",
 )
 
+func (cmd *syncCmd) valid(name string, item *bandcamp.Item) bool {
+	if item.Type == bandcamp.ItemTypeTrack {
+		if !cmd.Strict {
+			// Rather than stripping prefix, optimize for string
+			// length
+			m, _ := filepath.Glob(
+				name[:len(name)-len(bandcamp.Extensions[cmd.Format])+1] + "*")
+			return len(m) != 0
+		}
+
+		_, err := os.Stat(name)
+		return err != nil
+	}
+
+	if !cmd.Strict {
+		f, err := os.ReadDir(name)
+		if err != nil {
+			return false
+		}
+
+		return len(f)-1 >= len(item.Tracks)
+	}
+
+	for _, track := range item.Tracks {
+		name := filepath.Join(name, fmt.Sprintf("%02d %s%s",
+			track.Number, sanitizer.Replace(track.Title),
+			bandcamp.Extensions[cmd.Format]))
+		_, err := os.Stat(name)
+		if err != nil {
+			return false
+		}
+	}
+	return true
+}
+
 func (cmd *syncCmd) Download(
 	client *bandcamp.Client,
 	name string,
@@ -133,47 +169,21 @@ func (cmd *syncCmd) Download(
 ) error {
 	name = filepath.Join(cmd.Output, name)
 
-	_, err := os.Stat(name)
-	if err == nil && !cmd.Force {
-		if item.Type == bandcamp.ItemTypeTrack {
-			return nil
-		}
-
-		// Yes, this is completely unnecessary, but Bandcamp allows
-		// artists to change the order or add new tracks to an existing
-		// album.
-		synced := true
-		for _, track := range item.Tracks {
-
-			name := filepath.Join(name, fmt.Sprintf("%02d %s%s",
-				track.Number, sanitizer.Replace(track.Title),
-				bandcamp.Extensions[cmd.Format]))
-			_, err := os.Stat(name)
-			if err == nil {
-				continue
-			}
-
-			if cmd.DryRun {
-				log.Printf("Missing track %s of %s (%s)",
-					track.Title, item.Title, name)
-			}
-			synced = false
-			break
-		}
-
-		if synced || cmd.DryRun {
-			return nil
-		}
-
-		// Album is corrupt
-		if err := os.RemoveAll(name); err != nil {
-			return fmt.Errorf("corrupt remove: %w", err)
-		}
+	// Prefer to glob file checks incase albums or tracks are
+	// transcoded as another format. Obviously this works against
+	// the user in the case that they want to download in new format,
+	// but this is a fine sacrifice to make.
+	if cmd.valid(name, item) {
+		return nil
 	}
 
 	if cmd.DryRun {
-		log.Println("Would download", filepath.Base(name))
+		log.Printf("Would download %s (%s)", filepath.Base(name), item)
 		return nil
+	} else if item.Type == bandcamp.ItemTypeAlbum {
+		if err := os.RemoveAll(name); err != nil {
+			return fmt.Errorf("corrupt remove: %w", err)
+		}
 	}
 
 	download, err := client.GetItemDownload(item, cmd.Format)
