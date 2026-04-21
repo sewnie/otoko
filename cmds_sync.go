@@ -250,7 +250,7 @@ func (cmd *syncCmd) Download(
 		return nil
 	}
 
-	err = extractAlbum(f, name)
+	err = extractAlbum(item, f, name)
 	if errors.Is(err, zip.ErrFormat) {
 		return fmt.Errorf("email missing from bandcamp account: %s", download.Email)
 	}

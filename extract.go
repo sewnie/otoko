@@ -8,25 +8,29 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/sewnie/otoko/bandcamp"
 )
 
-func extractAlbum(src *os.File, albumDir string) error {
+func extractAlbum(
+	item *bandcamp.Item,
+	src *os.File, dir string,
+) error {
 	s, err := src.Stat()
 	if err != nil {
 		return err
 	}
-
-	albumName := filepath.Base(albumDir)
 
 	r, err := zip.NewReader(src, s.Size())
 	if err != nil {
 		return err
 	}
 
-	if err := os.MkdirAll(albumDir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
 
+	trunc := item.BandName + " - " + item.Title + " - "
 	for _, f := range r.File {
 		if f.FileInfo().IsDir() {
 			return errors.New("unexpected directory")
@@ -34,8 +38,8 @@ func extractAlbum(src *os.File, albumDir string) error {
 
 		// life - demo two - 05 twelve travel.flac -> '05 twelve travel.flac'
 		name := f.Name
-		if i := strings.LastIndex(name, albumName+" - "); i > 0 {
-			name = name[i+len(albumName)+3:]
+		if a, found := strings.CutPrefix(name, trunc); found {
+			name = a
 		} else {
 			// It is unknown if Bandcamp lets artists ship their own files,
 			// but these additional album covers are the only things I've
@@ -47,7 +51,7 @@ func extractAlbum(src *os.File, albumDir string) error {
 			}
 		}
 
-		dst, err := os.OpenFile(filepath.Join(albumDir, name),
+		dst, err := os.OpenFile(filepath.Join(dir, name),
 			os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
 		if err != nil {
 			return err

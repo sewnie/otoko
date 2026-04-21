@@ -66,6 +66,15 @@ Music is downloaded to the given output directory with this structure:
 Music belonging to albums or tracks are saved without the artist and album in the
 filename, since said metadata is already represented in the directory structure.
 
-Albums and tracks with the same name will have their tralbum ID appended to the name.
+Unfortunately, the directory structure will keep the directory name of collaboration
+albums equal to that of the "artist" field in the tralbum data. This is due to the
+fact that Bandcamp has no way of storing a list of artists, and artists use the
+single artist name to represent multiple, either using commas or slashes. Due to the
+fragility of this naming scheme, the music player using this directory structure should
+attempt to read the music tags or the user to use MusicBrainz Picard.
 
-If the track or the album's tracks already exists, it is skipped.
+Albums and tracks with the same name will have their tralbum ID appended to the name,
+unless they are downloaded seperately, in which case this check will be ignored.
+
+If the track already exists or the album's tracklist matches, it is skipped. The
+option `--strict` will add checking the downloaded format as well.
