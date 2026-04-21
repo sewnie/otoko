@@ -3,7 +3,7 @@
 Simple CLI [bandcamp](https://bandcamp.com) collection synchronizer and manager.
 
 ```
-$ ./otoko --format flac ~/music
+$ ./otoko sync --format flac ~/music
 sjalvmord 7 / 71                                ⠼                                 
 a2594097446 475.8 MiB / 518.4 MiB  █████████████████████████████████████████████████▌░░░░░ 2.30MiB/s
 a382191878  466.5 MiB / 1.1 GiB    ██████████████████████▌░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 2.28MiB/s

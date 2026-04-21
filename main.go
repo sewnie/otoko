@@ -13,7 +13,7 @@ type options struct {
 	Client *Client `kong:"name=identity,help='Bandcamp identity cookie value, fetched from browser if empty',required,env=BANDCAMP_IDENTITY"`
 
 	Value valueCmd `kong:"cmd,help='Calculate the total value of your Bandcamp collection'"`
-	Sync  syncCmd  `kong:"cmd,help='Download and synchronize your collection to a local directory',default=withargs"`
+	Sync  syncCmd  `kong:"cmd,help='Download and synchronize your collection to a local directory'"`
 	List  listCmd  `kong:"cmd,help='Display detailed metadata for tracks and albums in your collection'"`
 }
 
